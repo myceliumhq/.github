@@ -1,0 +1,48 @@
+name: Docker Publish
+
+# Builds and pushes one Dockerfile to GHCR, tagged with the git tag that
+# triggered the caller's workflow (e.g. v1.2.3 -- kept as-is, matching the
+# npm package's own tagged version; no ":latest", images are pinned
+# everywhere they're deployed). Triggered on a `v*` tag push in the caller
+# repo, decoupled from the npm release job itself -- semantic-release
+# always creates and pushes that tag on a successful release regardless of
+# which plugins are configured, so this needs no output-passing from that
+# job to know a new version exists.
+
+on:
+  workflow_call:
+    inputs:
+      image:
+        description: "Image name under ghcr.io/myceliumhq/"
+        type: string
+        required: true
+      dockerfile:
+        description: "Path to the Dockerfile to build"
+        type: string
+        required: true
+      context:
+        description: "Build context"
+        type: string
+        default: "."
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ inputs.context }}
+          file: ${{ inputs.dockerfile }}
+          push: true
+          tags: ghcr.io/myceliumhq/${{ inputs.image }}:${{ github.ref_name }}
