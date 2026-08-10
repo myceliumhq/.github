@@ -34,6 +34,14 @@ jobs:
           node-version: ${{ inputs.node-version }}
           cache: pnpm
 
+      # npm trusted publishing (OIDC) needs npm >=11.5.1 for the actual
+      # `npm publish` invocation, not just @semantic-release/npm's own
+      # pre-flight OIDC check -- the npm bundled with Node 22 on the
+      # runner is older than that, so `npm publish` shells out to a
+      # binary that doesn't know how to do the token exchange and fails
+      # with ENEEDAUTH even though verifyConditions already succeeded.
+      - run: npm install -g npm@latest
+
       - run: pnpm install --frozen-lockfile
 
       - run: pnpm run build
