@@ -6,9 +6,6 @@ on:
       node-version:
         type: string
         default: "22"
-    secrets:
-      NPM_TOKEN:
-        required: true
 
 jobs:
   release:
@@ -17,6 +14,14 @@ jobs:
       contents: write
       issues: write
       pull-requests: write
+      # Required to mint the OIDC JWT for npm trusted publishing --
+      # @semantic-release/npm (v13.1.0+) auto-detects an OIDC-eligible
+      # context and uses it instead of an NPM_TOKEN. Note: npm validates
+      # the trusted-publisher config against the *calling* workflow file in
+      # the product repo (e.g. tri/.github/workflows/release.yml), not this
+      # shared reusable workflow -- id-token: write must be granted in both
+      # the caller and here, or the OIDC token can't be minted at all.
+      id-token: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -38,4 +43,3 @@ jobs:
       - run: npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
