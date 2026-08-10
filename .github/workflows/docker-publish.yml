@@ -1,13 +1,17 @@
 name: Docker Publish
 
-# Builds and pushes one Dockerfile to GHCR, tagged with the git tag that
-# triggered the caller's workflow (e.g. v1.2.3 -- kept as-is, matching the
-# npm package's own tagged version; no ":latest", images are pinned
-# everywhere they're deployed). Triggered on a `v*` tag push in the caller
-# repo, decoupled from the npm release job itself -- semantic-release
-# always creates and pushes that tag on a successful release regardless of
-# which plugins are configured, so this needs no output-passing from that
-# job to know a new version exists.
+# Builds and pushes one Dockerfile to GHCR, tagged with `inputs.tag` (e.g.
+# v1.2.3 -- kept as-is, matching the npm package's own tagged version; no
+# ":latest", images are pinned everywhere they're deployed).
+#
+# `tag`/`ref` are always explicit inputs, never inferred from github.ref_name
+# -- the caller is expected to be triggered by `workflow_run` on its own
+# "Release" workflow completing (not `push: tags:`), because a tag pushed
+# using the release job's own GITHUB_TOKEN does NOT trigger downstream
+# `on: push` workflows (GitHub's anti-recursion guard). workflow_run doesn't
+# have that restriction, but it also doesn't carry a tag ref of its own, so
+# the caller has to resolve "what tag did the release just create" itself
+# (see tri's docker-semanticd.yml) and hand both here explicitly.
 
 on:
   workflow_call:
@@ -18,6 +22,14 @@ on:
         required: true
       dockerfile:
         description: "Path to the Dockerfile to build"
+        type: string
+        required: true
+      tag:
+        description: "Image tag to publish under, e.g. v1.2.3"
+        type: string
+        required: true
+      ref:
+        description: "Git ref to check out and build (typically the same as tag)"
         type: string
         required: true
       context:
@@ -33,6 +45,8 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
 
       - uses: docker/login-action@v3
         with:
@@ -45,4 +59,4 @@ jobs:
           context: ${{ inputs.context }}
           file: ${{ inputs.dockerfile }}
           push: true
-          tags: ghcr.io/myceliumhq/${{ inputs.image }}:${{ github.ref_name }}
+          tags: ghcr.io/myceliumhq/${{ inputs.image }}:${{ inputs.tag }}
