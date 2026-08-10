@@ -24,8 +24,13 @@ jobs:
 
       - run: pnpm run lint
 
-      - run: pnpm run typecheck
-
+      # build before typecheck: a multi-package repo's typecheck resolves
+      # sibling workspace packages (e.g. @myceliumhq/index -> @myceliumhq/
+      # embed) via each package's own dist/*.d.ts, which only exist once
+      # build has run -- typecheck first would fail with "Cannot find
+      # module" on a clean checkout even though the code is correct.
       - run: pnpm run build
+
+      - run: pnpm run typecheck
 
       - run: pnpm run test
